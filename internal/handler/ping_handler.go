@@ -10,7 +10,7 @@ type PingHandler struct{}
 func NewPingHandler() *PingHandler { return &PingHandler{} }
 
 // Ping handles GET /ping.
-// Level 1 requirement: returns {"message":"pong"} with HTTP 200.
+// Level 1 requirement: returns {"success":true} with HTTP 200.
 func (h *PingHandler) Ping(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{"message": "pong"})
+	return c.JSON(fiber.Map{"success": true})
 }

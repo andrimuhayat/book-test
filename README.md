@@ -97,7 +97,7 @@ docker compose down   # stop and remove containers
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `GET` | `/ping` | Public | Health-check – returns `{"message":"pong"}` |
+| `GET` | `/ping` | Public | Health-check – returns `{"success":true}` |
 | `POST` | `/echo` | Public | Echoes the JSON request body back verbatim |
 | `POST` | `/auth/token` | Public | Issues a signed JWT for valid credentials |
 | `POST` | `/books` | 🔒 Bearer | Create a new book |
@@ -176,4 +176,148 @@ To run all tests in the module:
 ```bash
 go test -race ./...
 ```
+
+---
+
+## 8. Deploying on Linux (Ubuntu)
+
+### 8.1 Running with Docker Compose (recommended)
+
+Docker Compose is the simplest way to get the service running on a fresh Ubuntu server — no Go toolchain required on the host.
+
+**Install Docker Engine and the Compose plugin** (skip if already installed):
+
+```bash
+# Update package index and install prerequisites
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg lsb-release
+
+# Add Docker's official GPG key and repository
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+  | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+  | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Install Docker Engine and the Compose plugin
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# (Optional) run Docker without sudo
+sudo usermod -aG docker $USER && newgrp docker
+```
+
+**Start the service:**
+
+```bash
+docker compose up --build -d
+```
+
+**Useful management commands:**
+
+```bash
+docker compose logs -f          # stream logs
+docker compose down             # stop and remove containers
+docker compose up -d --no-build # restart without rebuilding
+```
+
+---
+
+### 8.2 Running as a native Go binary
+
+Use this approach when Docker is not available or you prefer a bare-metal deployment.
+
+**Install Go 1.24 on Ubuntu:**
+
+```bash
+# Download and extract the official tarball (adjust version as needed)
+curl -OL https://go.dev/dl/go1.24.linux-amd64.tar.gz
+sudo rm -rf /usr/local/go
+sudo tar -C /usr/local -xzf go1.24.linux-amd64.tar.gz
+echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.profile
+source ~/.profile
+go version   # should print go1.24.x
+```
+
+**Clone the repository and compile a production binary:**
+
+```bash
+git clone https://github.com/andrimuhayat/crud-test.git
+cd crud-test
+
+# Build a statically linked binary with debug info stripped
+CGO_ENABLED=0 go build -ldflags="-s -w" -o server ./cmd/api/main.go
+```
+
+**Run the binary:**
+
+```bash
+./server
+# Listening on :8080
+```
+
+---
+
+### 8.3 Running as a `systemd` service
+
+Wrapping the binary in a `systemd` unit gives you automatic startup on boot and automatic restart on failure — without Docker.
+
+**Create the unit file:**
+
+```bash
+sudo nano /etc/systemd/system/api-quest.service
+```
+
+Paste the following content (adjust `WorkingDirectory` and `ExecStart` to match where you placed the binary):
+
+```ini
+[Unit]
+Description=API Quest – Go backend service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/crud-test
+ExecStart=/home/ubuntu/crud-test/server
+Restart=on-failure
+RestartSec=5s
+Environment=APP_PORT=8080
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Enable and start the service:**
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable api-quest
+sudo systemctl start api-quest
+sudo systemctl status api-quest
+```
+
+**Other useful commands:**
+
+```bash
+sudo systemctl restart api-quest          # apply a new binary without rebooting
+sudo journalctl -u api-quest -f           # stream logs in real time
+sudo systemctl stop api-quest             # stop the service
+sudo systemctl disable api-quest          # prevent start on boot
+```
+
+---
+
+### 8.4 Firewall
+
+If `ufw` is active on the server, open port `8080` before testing connectivity:
+
+```bash
+sudo ufw allow 8080/tcp
+sudo ufw status     # verify the rule was added
+```
+
+> **Tip:** In production, place a reverse proxy such as Nginx or Caddy in front of the service on port 80/443 and keep port 8080 closed to the public. The proxy forwards traffic internally to `localhost:8080`.
 
