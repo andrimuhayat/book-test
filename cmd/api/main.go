@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/andrimuhayat/crud-test/internal/handler"
-	"github.com/andrimuhayat/crud-test/internal/middleware"
 	"github.com/andrimuhayat/crud-test/internal/repository/memory"
 	"github.com/andrimuhayat/crud-test/internal/usecase"
 	"github.com/gofiber/fiber/v2"
@@ -44,14 +43,12 @@ func main() {
 	app.Post("/echo", echoH.Echo)
 	app.Post("/auth/token", authH.GenerateToken)
 
-	// --- Protected routes (require valid JWT) ---
-	books := app.Group("/books", middleware.Auth(authUC))
-	books.Post("/", bookH.CreateBook)
-	books.Get("/", bookH.GetBooks)
-	books.Get("/:id", bookH.GetBook)
-	books.Put("/:id", bookH.UpdateBook)
-	books.Delete("/:id", bookH.DeleteBook)
+	// --- Book routes (public — no auth required for Level 3) ---
+	app.Post("/books", bookH.CreateBook)
+	app.Get("/books", bookH.GetBooks)
+	app.Get("/books/:id", bookH.GetBook)
+	app.Put("/books/:id", bookH.UpdateBook)
+	app.Delete("/books/:id", bookH.DeleteBook)
 
 	log.Fatal(app.Listen(":8080"))
 }
-

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/andrimuhayat/crud-test/internal/domain"
 	"github.com/gofiber/fiber/v2"
@@ -54,36 +53,23 @@ func (h *BookHandler) GetBook(c *fiber.Ctx) error {
 	return c.JSON(book)
 }
 
-// GetBooks handles GET /books with optional ?author=, ?page=, ?limit= query params.
+// GetBooks handles GET /books with optional ?author= query param.
+// Returns a bare JSON array of book objects (Level 3 requirement).
 func (h *BookHandler) GetBooks(c *fiber.Ctx) error {
-	page, _ := strconv.Atoi(c.Query("page", "1"))
-	limit, _ := strconv.Atoi(c.Query("limit", "10"))
-	if page < 1 {
-		page = 1
-	}
-	if limit < 1 {
-		limit = 10
-	}
-
 	filter := domain.BookFilter{
 		Author: c.Query("author"),
-		Page:   page,
-		Limit:  limit,
+		Page:   1,
+		Limit:  1000,
 	}
 
-	books, total, err := h.bookUC.GetBooks(filter)
+	books, _, err := h.bookUC.GetBooks(filter)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
 	if books == nil {
 		books = []*domain.Book{}
 	}
-	return c.JSON(fiber.Map{
-		"data":  books,
-		"total": total,
-		"page":  page,
-		"limit": limit,
-	})
+	return c.JSON(books)
 }
 
 // UpdateBook handles PUT /books/:id.
@@ -122,4 +108,3 @@ func (h *BookHandler) DeleteBook(c *fiber.Ctx) error {
 	}
 	return c.SendStatus(http.StatusNoContent)
 }
-
