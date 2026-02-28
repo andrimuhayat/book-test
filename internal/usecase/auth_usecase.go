@@ -20,10 +20,15 @@ func NewAuthUseCase() *AuthUseCase {
 	return &AuthUseCase{}
 }
 
-// GenerateToken validates credentials and returns a signed JWT.
-// Any non-empty username/password is accepted (flexible for test platform).
+const (
+	validUsername = "admin"
+	validPassword = "secret"
+)
+
+// GenerateToken validates credentials against the known admin pair and returns
+// a signed JWT. Any other combination is rejected with ErrUnauthorized.
 func (uc *AuthUseCase) GenerateToken(username, password string) (string, error) {
-	if username == "" || password == "" {
+	if username != validUsername || password != validPassword {
 		return "", domain.ErrUnauthorized
 	}
 
@@ -67,4 +72,3 @@ func (uc *AuthUseCase) ValidateToken(tokenStr string) (string, error) {
 
 	return sub, nil
 }
-
